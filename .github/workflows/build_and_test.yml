@@ -26,17 +26,17 @@ on:
   schedule:
     # Note that the scheduled jobs are only for master branch.
     # master, Hadoop 2
-    - cron: '0 1 * * *'
+    - cron: '15 16 * * *'
     # master
-    - cron: '0 4 * * *'
+    - cron: '16 16 * * *'
     # branch-3.2
-    - cron: '0 7 * * *'
+    - cron: '17 16 * * *'
     # PySpark coverage for master branch
-    - cron: '0 10 * * *'
+    - cron: '18 16 * * *'
     # Java 11
-    - cron: '0 13 * * *'
+    - cron: '19 16 * * *'
     # Java 17
-    - cron: '0 16 * * *'
+    - cron: '20 16 * * *'
   workflow_call:
     inputs:
       ansi_enabled:
@@ -63,37 +63,37 @@ jobs:
     - name: Configure branch and additional environment variables
       id: set-outputs
       run: |
-        if [ "${{ github.event.schedule }}" = "0 1 * * *" ]; then
+        if [ "${{ github.event.schedule }}" = "15 16 * * *" ]; then
           echo '::set-output name=java::8'
           echo '::set-output name=branch::master'
           echo '::set-output name=type::scheduled'
           echo '::set-output name=envs::{}'
           echo '::set-output name=hadoop::hadoop2'
-        elif [ "${{ github.event.schedule }}" = "0 4 * * *" ]; then
+        elif [ "${{ github.event.schedule }}" = "16 16 * * *" ]; then
           echo '::set-output name=java::8'
           echo '::set-output name=branch::master'
           echo '::set-output name=type::scheduled'
           echo '::set-output name=envs::{"SCALA_PROFILE": "scala2.13"}'
           echo '::set-output name=hadoop::hadoop3'
-        elif [ "${{ github.event.schedule }}" = "0 7 * * *" ]; then
+        elif [ "${{ github.event.schedule }}" = "17 16 * * *" ]; then
           echo '::set-output name=java::8'
           echo '::set-output name=branch::branch-3.2'
           echo '::set-output name=type::scheduled'
           echo '::set-output name=envs::{"SCALA_PROFILE": "scala2.13"}'
           echo '::set-output name=hadoop::hadoop3.2'
-        elif [ "${{ github.event.schedule }}" = "0 10 * * *" ]; then
+        elif [ "${{ github.event.schedule }}" = "18 16 * * *" ]; then
           echo '::set-output name=java::8'
           echo '::set-output name=branch::master'
           echo '::set-output name=type::pyspark-coverage-scheduled'
           echo '::set-output name=envs::{"PYSPARK_CODECOV": "true"}'
           echo '::set-output name=hadoop::hadoop3'
-        elif [ "${{ github.event.schedule }}" = "0 13 * * *" ]; then
+        elif [ "${{ github.event.schedule }}" = "19 16 * * *" ]; then
           echo '::set-output name=java::11'
           echo '::set-output name=branch::master'
           echo '::set-output name=type::scheduled'
           echo '::set-output name=envs::{"SKIP_MIMA": "true", "SKIP_UNIDOC": "true"}'
           echo '::set-output name=hadoop::hadoop3'
-        elif [ "${{ github.event.schedule }}" = "0 16 * * *" ]; then
+        elif [ "${{ github.event.schedule }}" = "20 16 * * *" ]; then
           echo '::set-output name=java::17'
           echo '::set-output name=branch::master'
           echo '::set-output name=type::scheduled'
