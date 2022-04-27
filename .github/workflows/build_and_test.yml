@@ -843,3 +843,19 @@ jobs:
       with:
         name: unit-tests-log-docker-integration--8-${{ needs.configure-jobs.outputs.hadoop }}-hive2.3
         path: "**/target/unit-tests.log"
+
+  publish:
+    name: "Publish test results"
+    runs-on: ubuntu-latest
+    needs: [build, pyspark, sparkr, java-11-17, scala-213, tpcds-1g, docker-integration-tests]
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: "Publish Test Results"
+      uses: EnricoMi/publish-unit-test-result-action@v1
+      if: always()
+      with:
+        files: "artifacts/test-results-*/**/*.xml"
