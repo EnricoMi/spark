@@ -62,10 +62,6 @@ jobs:
         java-version: 17
     - name: Publish snapshot
       env:
-        ASF_USERNAME: ${{ secrets.NEXUS_USER }}
-        ASF_PASSWORD: ${{ secrets.NEXUS_PW }}
-        GPG_KEY: "not_used"
-        GPG_PASSPHRASE: "not_used"
         GIT_REF: ${{ matrix.branch }}
       run: |
         while true
@@ -75,4 +71,4 @@ jobs:
           sleep 1
           echo
         done | sed "s/^/mem: /" &
-        ./dev/create-release/release-build.sh publish-snapshot
+        ./build/mvn package
