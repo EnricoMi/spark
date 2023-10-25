@@ -20,8 +20,6 @@
 name: Publish Snapshot
 
 on:
-  schedule:
-  - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       branch:
@@ -32,7 +30,6 @@ on:
 
 jobs:
   publish-snapshot:
-    if: github.repository == 'apache/spark'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
