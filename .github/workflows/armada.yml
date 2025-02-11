@@ -13,8 +13,7 @@ jobs:
           path: spark-armada
       - uses: actions/checkout@v4
         with:
-          repository: richscott/armada
-          ref: rich/scala-build-container2
+          repository: armadaproject/armada
           path: armada
       - uses: actions/checkout@v4
         with:
@@ -30,15 +29,14 @@ jobs:
           curl -s -L -O https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz
           tar -xzvf ./sbt-${SBT_VERSION}.tgz
           echo "$PWD/sbt/bin" >> "${GITHUB_PATH}"
+          curl -s -L -O https://github.com/magefile/mage/releases/download/v1.15.0/mage_1.15.0_Linux-64bit.tar.gz
+          tar -xzvf ./mage_1.15.0_Linux-64bit.tar.gz mage
+          sudo apt install -y protobuf-compiler
       - name: Build Armada Scala Client
         run: |
           cd armada
-          docker build -t armada-scala-client-builder -f build/scala-client/Dockerfile .
-          echo docker run --rm -u $(id -u):$(id -u) -v "$PWD:/build" -w /build armada-scala-client-builder
-          docker run --rm -u $(id -u):$(id -u) -v "$PWD:/build" -w /build armada-scala-client-builder
-          cd ..
-
-          cd armada/client/scala/scala-armada-client
+          ../mage buildScala
+          cd client/scala/scala-armada-client
           sbt -Dsbt.io.implicit.relative.glob.conversion=allow publishM2
       - name: Build Spark Docker image
         run: |
@@ -46,14 +44,12 @@ jobs:
           ./build/sbt package -Parmada -Pkubernetes
           ./bin/docker-image-tool.sh -t testing build
           docker image save -o ../spark_testing.tar spark:testing
-          cd ..
-
+      - name: Setup Armada
+        run: |
           cd armada-operator
           make kind-all
           ./bin/tooling/kind load image-archive ../spark_testing.tar --name armada
 
-      - name: Submit Spark app
-        run: |
           # sleep a bit, or we see: create queue request failed: rpc error: code = DeadlineExceeded
           sleep 60
 
@@ -61,7 +57,9 @@ jobs:
 
           # sleep a bit, or we see: rpc error: code = PermissionDenied desc = could not find queue "test"
           sleep 60
-
+      - name: Submit Spark app
+        run: |
+          cd armada-operator
           ./bin/app/armadactl submit ../spark-armada/examples/spark-pi-driver.yaml
 
           # wait for the jobs to start
