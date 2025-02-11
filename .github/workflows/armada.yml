@@ -60,7 +60,7 @@ jobs:
       - name: Submit Spark app
         run: |
           cd spark-armada
-          ./bin/spark-submit --master armada://localhost:30002 --deploy-mode cluster --name spark-pi --class org.apache.spark.examples.SparkPi --conf spark.executor.instances=2 --conf spark.kubernetes.container.image=spark:testing local:///opt/spark/examples/jars/spark-examples.jar 100
+          ./bin/spark-submit --master armada://localhost:30002 --deploy-mode cluster --name spark-pi --class org.apache.spark.examples.SparkPi --conf spark.executor.instances=2 --conf spark.kubernetes.executor.deleteOnTermination=false --conf spark.kubernetes.container.image=spark:testing local:///opt/spark/examples/jars/spark-examples.jar 100
 
       - name: Inspect k8s pods
         run: |
