@@ -59,11 +59,8 @@ jobs:
           sleep 60
       - name: Submit Spark app
         run: |
-          cd armada-operator
-          ./bin/app/armadactl submit ../spark-armada/examples/spark-pi-driver.yaml
-
-          # wait for the jobs to start
-          sleep 60
+          cd spark-armada
+          ./bin/spark-submit --master armada://localhost:30002 --deploy-mode cluster --name spark-pi --class org.apache.spark.examples.SparkPi --conf spark.executor.instances=2 --conf spark.kubernetes.container.image=spark:testing local:///opt/spark/examples/jars/spark-examples.jar 100
 
       - name: Inspect k8s pods
         run: |
