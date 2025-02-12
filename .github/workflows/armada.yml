@@ -50,25 +50,38 @@ jobs:
           make kind-all
           ./bin/tooling/kind load image-archive ../spark_testing.tar --name armada
 
-          # sleep a bit, or we see: create queue request failed: rpc error: code = DeadlineExceeded
-          sleep 60
-
-          ./bin/app/armadactl create queue test
-
-          # sleep a bit, or we see: rpc error: code = PermissionDenied desc = could not find queue "test"
-          sleep 60
+          # retry until success
+          while ! ./bin/app/armadactl create queue test; do sleep 10; done
+          while ! ./bin/app/armadactl get queue test; do sleep 10; done
       - name: Submit Spark app
         run: |
           cd spark-armada
           ./bin/spark-submit --master armada://localhost:30002 --deploy-mode cluster --name spark-pi --class org.apache.spark.examples.SparkPi --conf spark.executor.instances=2 --conf spark.kubernetes.executor.deleteOnTermination=false --conf spark.kubernetes.container.image=spark:testing local:///opt/spark/examples/jars/spark-examples.jar 100
 
+          for i in  {1..120}
+          do
+            armadactl get scheduling-report
+            echo
+            armadactl get queue-report test
+            echo
+            kubectl get pods --all-namespaces 2> /dev/null | tail -n +2
+            sleep 1
+            echo
+          done
       - name: Inspect k8s pods
         run: |
+          mkdir -p logs
           kubectl get pods
-          for pod in $(kubectl get pods | grep armada | cut -d " " -f 1)
+          for pod in $(kubectl get pods | tail -n +2 | cut -d " " -f 1)
           do
             echo "$pod"
-            kubectl logs pod/$pod
+            kubectl logs --all-containers=true pod/$pod > logs/$pod.log
             echo
           done
 
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: armada-k8s-logs
+          path: logs
