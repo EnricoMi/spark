@@ -786,6 +786,38 @@ final class ShuffleBlockFetcherIterator(
     }
   }
 
+  private def getMigratedMapSizesByExecutorId(
+      shuffleId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int,
+      migratedBlockManager: BlockManagerId):
+  Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])] = {
+    // fetch once, probably from cache
+    val fetched = mapOutputTracker.getMapSizesByExecutorId(
+        shuffleId,
+        startMapIndex,
+        endMapIndex,
+        startPartition,
+        endPartition)
+      .filter(_._1 != migratedBlockManager)
+    if (fetched.nonEmpty) {
+      fetched
+    } else {
+      // since address did not change (probably due to cache):
+      // unregister (drop from cache) and fetch again
+      mapOutputTracker.unregisterShuffle(shuffleId)
+      mapOutputTracker.getMapSizesByExecutorId(
+          shuffleId,
+          startMapIndex,
+          endMapIndex,
+          startPartition,
+          endPartition)
+        .filter(_._1 != migratedBlockManager)
+    }
+  }
+
   override def hasNext: Boolean = numBlocksProcessed < numBlocksToFetch
 
   /**
@@ -985,21 +1017,21 @@ final class ShuffleBlockFetcherIterator(
 
           val newBlocksByAddr = blockId match {
             case ShuffleBlockId(shuffleId, _, reduceId) =>
-              mapOutputTracker.getMapSizesByExecutorId(
+              getMigratedMapSizesByExecutorId(
                 shuffleId,
                 mapIndex,
-                mapIndex,
+                mapIndex + 1,
                 reduceId,
-                reduceId)
-                .filter(_._1 != address)
+                reduceId + 1,
+                address)
             case ShuffleBlockBatchId(shuffleId, _, startReduceId, endReduceId) =>
-              mapOutputTracker.getMapSizesByExecutorId(
+              getMigratedMapSizesByExecutorId(
                   shuffleId,
                   mapIndex,
-                  mapIndex,
+                  mapIndex + 1,
                   startReduceId,
-                  endReduceId)
-                .filter(_._1 != address)
+                  endReduceId,
+                  address)
             case _ =>
               logInfo(s"Fetching block $blockId failed")
               Iterator.empty
