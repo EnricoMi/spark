@@ -762,10 +762,6 @@ private[spark] class MapOutputTrackerMaster(
         needMergeOutput: Boolean): Unit = {
       val hostPort = context.senderAddress.hostPort
       val shuffleStatus = shuffleStatuses.get(shuffleId).head
-      val executors = shuffleStatus.mapStatuses.zipWithIndex
-        .map { case (status, idx) => s"$idx:${status.location.executorId}" }
-        .mkString(", ")
-      logInfo(s"Sending status of shuffle id $shuffleId to $hostPort: $executors")
       logDebug(s"Handling request to send ${if (needMergeOutput) "map/merge" else "map"}" +
         s" output locations for shuffle $shuffleId to $hostPort")
       if (needMergeOutput) {
@@ -1224,10 +1220,6 @@ private[spark] class MapOutputTrackerMaster(
       case Some(shuffleStatus) =>
         shuffleStatus.withMapStatuses { statuses =>
           val actualEndMapIndex = if (endMapIndex == Int.MaxValue) statuses.length else endMapIndex
-          val executors = statuses.zipWithIndex
-            .map { case (status, idx) => s"$idx:${status.location.executorId}" }
-            .mkString(", ")
-          logInfo(s"Retrieved status of shuffle id $shuffleId: $executors")
           logDebug(s"Convert map statuses for shuffle $shuffleId, " +
             s"mappers $startMapIndex-$actualEndMapIndex, partitions $startPartition-$endPartition")
           MapOutputTracker.convertMapStatuses(
@@ -1349,10 +1341,6 @@ private[spark] class MapOutputTrackerWorker(conf: SparkConf) extends MapOutputTr
     try {
       val actualEndMapIndex =
         if (endMapIndex == Int.MaxValue) mapOutputStatuses.length else endMapIndex
-      val executors = mapOutputStatuses.zipWithIndex
-        .map { case (status, idx) => s"$idx:${status.location.executorId}" }
-        .mkString(", ")
-      logInfo(s"Retrieved status of shuffle id $shuffleId: $executors")
       logDebug(s"Convert map statuses for shuffle $shuffleId, " +
         s"mappers $startMapIndex-$actualEndMapIndex, partitions $startPartition-$endPartition")
       MapOutputTracker.convertMapStatuses(
