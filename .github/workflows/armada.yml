@@ -13,39 +13,88 @@ jobs:
           path: spark-armada
       - uses: actions/checkout@v4
         with:
+          repository: armadaproject/armada
+          path: armada
+      - uses: actions/checkout@v4
+        with:
           repository: armadaproject/armada-operator
           path: armada-operator
-      - run: |
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          check-latest: true
+          cache: false
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '23.3'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Scala and SBT
+        env:
+          SBT_VERSION: 1.10.7
+          SCALA_VERSION: 2.13.15
+        run: |
+          curl -s -O https://downloads.lightbend.com/scala/${SCALA_VERSION}/scala-${SCALA_VERSION}.deb
+          sudo apt install -y ./scala-${SCALA_VERSION}.deb
+          curl -s -L -O https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz
+          tar -xzvf ./sbt-${SBT_VERSION}.tgz
+          echo "$PWD/sbt/bin" >> "${GITHUB_PATH}"
+      - name: Build Armada Scala Client
+        run: |
+          cd armada
+          go run github.com/magefile/mage@v1.14.0 -v buildScala
+          cd client/scala/scala-armada-client
+          sbt -Dsbt.io.implicit.relative.glob.conversion=allow publishM2
+      - name: Build Spark Docker image
+        run: |
           cd spark-armada
           ./build/sbt package -Parmada -Pkubernetes
           ./bin/docker-image-tool.sh -t testing build
           docker image save -o ../spark_testing.tar spark:testing
-          cd ..
-
+      - name: Setup Armada
+        run: |
           cd armada-operator
           make kind-all
           ./bin/tooling/kind load image-archive ../spark_testing.tar --name armada
 
-          # sleep a bit, or we see: create queue request failed: rpc error: code = DeadlineExceeded
-          sleep 60
+          # retry until success
+          while ! ./bin/app/armadactl create queue test; do sleep 10; done
+          while ! ./bin/app/armadactl get queue test; do sleep 10; done
+      - name: Submit Spark app
+        run: |
+          # retry until success
+          cd armada-operator
+          while ! ./bin/app/armadactl get queue test; do sleep 10; done
+          sleep 10
+          cd ..
 
-          ./bin/app/armadactl create queue test
+          cd spark-armada
+          ./bin/spark-submit --master armada://localhost:30002 --deploy-mode cluster --name spark-pi --class org.apache.spark.examples.SparkPi --conf spark.executor.instances=2 --conf spark.kubernetes.executor.deleteOnTermination=false --conf spark.kubernetes.container.image=spark:testing local:///opt/spark/examples/jars/spark-examples.jar 100
 
-          # sleep a bit, or we see: rpc error: code = PermissionDenied desc = could not find queue "test"
-          sleep 60
-
-          ./bin/app/armadactl submit ../spark-armada/examples/spark-driver-job.yaml
-          ./bin/app/armadactl submit ../spark-armada/examples/spark-executor-job.yaml
-
-          # wait for the jobs to start
-          sleep 60
-
-          # inspect jobs
+          for i in  {1..120}
+          do
+            armadactl get scheduling-report
+            echo
+            armadactl get queue-report test
+            echo
+            kubectl get pods --all-namespaces 2> /dev/null | tail -n +2
+            sleep 1
+            echo
+          done
+      - name: Inspect k8s pods
+        run: |
+          mkdir -p logs
           kubectl get pods
-          for pod in $(kubectl get pods | grep armada | cut -d " " -f 1)
+          for pod in $(kubectl get pods | tail -n +2 | cut -d " " -f 1)
           do
             echo "$pod"
-            kubectl logs pod/$pod
+            kubectl logs --all-containers=true pod/$pod > logs/$pod.log
             echo
           done
 
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: armada-k8s-logs
+          path: logs
