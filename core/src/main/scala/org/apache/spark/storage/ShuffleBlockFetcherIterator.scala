@@ -795,6 +795,7 @@ final class ShuffleBlockFetcherIterator(
       endPartition: Int,
       migratedBlockManager: BlockManagerId):
   Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])] = {
+    // TODO: ignore local or host local block managers
     if (shuffleBlockMigrationEnabled) {
       def fetchNewBlockManagers() :
       Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])] =
@@ -1041,6 +1042,7 @@ final class ShuffleBlockFetcherIterator(
           if (newBlocksByAddr.nonEmpty) {
             logInfo(s"New addresses found for block $blockId and mapIndex $mapIndex, " +
               s"rescheduling request: $address -> ${newBlocksByAddr.map(_._1).mkString(", ")}")
+            decreaseNumBlocksToFetch(1)
             fallbackFetch(newBlocksByAddr)
             result = null
           } else {
