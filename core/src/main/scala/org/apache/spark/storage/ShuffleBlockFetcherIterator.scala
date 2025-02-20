@@ -100,6 +100,7 @@ final class ShuffleBlockFetcherIterator(
     detectCorruptUseExtraMemory: Boolean,
     checksumEnabled: Boolean,
     checksumAlgorithm: String,
+    shuffleBlockMigrationEnabled: Boolean,
     shuffleMetrics: ShuffleReadMetricsReporter,
     doBatchFetch: Boolean,
   clock: Clock = new SystemClock())
@@ -794,25 +795,29 @@ final class ShuffleBlockFetcherIterator(
       endPartition: Int,
       migratedBlockManager: BlockManagerId):
   Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])] = {
-    def fetchNewBlockManagers():
-    Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])] =
-      mapOutputTracker.getMapSizesByExecutorId(
-          shuffleId,
-          startMapIndex,
-          endMapIndex,
-          startPartition,
-          endPartition)
-        .filter(_._1 != migratedBlockManager)
+    if (shuffleBlockMigrationEnabled) {
+      def fetchNewBlockManagers() :
+      Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])] =
+        mapOutputTracker.getMapSizesByExecutorId(
+            shuffleId,
+            startMapIndex,
+            endMapIndex,
+            startPartition,
+            endPartition)
+          .filter(_._1 != migratedBlockManager)
 
-    // fetch once, probably from cache
-    Some(fetchNewBlockManagers())
-      .filter(_.nonEmpty)
-      // since address did not change (probably due to cache):
-      .getOrElse {
-        // unregister (drop from cache) and fetch again
-        mapOutputTracker.unregisterShuffle(shuffleId)
-        fetchNewBlockManagers()
-      }
+      // fetch once, probably from cache
+      Some(fetchNewBlockManagers())
+        .filter(_.nonEmpty)
+        // since address did not change (probably due to cache):
+        .getOrElse {
+          // unregister (drop from cache) and fetch again
+          mapOutputTracker.unregisterShuffle(shuffleId)
+          fetchNewBlockManagers()
+        }
+    } else {
+      Iterator.empty
+    }
   }
 
   override def hasNext: Boolean = numBlocksProcessed < numBlocksToFetch

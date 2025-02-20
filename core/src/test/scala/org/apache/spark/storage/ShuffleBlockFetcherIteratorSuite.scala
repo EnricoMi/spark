@@ -193,6 +193,7 @@ class ShuffleBlockFetcherIteratorSuite extends SparkFunSuite with PrivateMethodT
       detectCorruptUseExtraMemory: Boolean = true,
       checksumEnabled: Boolean = true,
       checksumAlgorithm: String = "ADLER32",
+      shuffleBlockMigrationEnabled: Boolean = false,
       shuffleMetrics: Option[ShuffleReadMetricsReporter] = None,
       doBatchFetch: Boolean = false): ShuffleBlockFetcherIterator = {
     val tContext = taskContext.getOrElse(TaskContext.empty())
@@ -219,6 +220,7 @@ class ShuffleBlockFetcherIteratorSuite extends SparkFunSuite with PrivateMethodT
       detectCorruptUseExtraMemory,
       checksumEnabled,
       checksumAlgorithm,
+      shuffleBlockMigrationEnabled,
       shuffleMetrics.getOrElse(tContext.taskMetrics().createTempShuffleReadMetrics()),
       doBatchFetch)
   }

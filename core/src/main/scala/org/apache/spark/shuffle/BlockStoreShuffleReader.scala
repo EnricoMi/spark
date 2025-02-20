@@ -87,6 +87,7 @@ private[spark] class BlockStoreShuffleReader[K, C](
       SparkEnv.get.conf.get(config.SHUFFLE_DETECT_CORRUPT_MEMORY),
       SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ENABLED),
       SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ALGORITHM),
+      SparkEnv.get.conf.get(config.STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED),
       readMetrics,
       fetchContinuousBlocksInBatch).toCompletionIterator
 
