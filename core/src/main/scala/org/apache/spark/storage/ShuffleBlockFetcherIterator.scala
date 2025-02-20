@@ -794,20 +794,8 @@ final class ShuffleBlockFetcherIterator(
       endPartition: Int,
       migratedBlockManager: BlockManagerId):
   Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])] = {
-    // fetch once, probably from cache
-    val fetched = mapOutputTracker.getMapSizesByExecutorId(
-        shuffleId,
-        startMapIndex,
-        endMapIndex,
-        startPartition,
-        endPartition)
-      .filter(_._1 != migratedBlockManager)
-    if (fetched.nonEmpty) {
-      fetched
-    } else {
-      // since address did not change (probably due to cache):
-      // unregister (drop from cache) and fetch again
-      mapOutputTracker.unregisterShuffle(shuffleId)
+    def fetchNewBlockManagers():
+    Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])] =
       mapOutputTracker.getMapSizesByExecutorId(
           shuffleId,
           startMapIndex,
@@ -815,7 +803,16 @@ final class ShuffleBlockFetcherIterator(
           startPartition,
           endPartition)
         .filter(_._1 != migratedBlockManager)
-    }
+
+    // fetch once, probably from cache
+    Some(fetchNewBlockManagers())
+      .filter(_.nonEmpty)
+      // since address did not change (probably due to cache):
+      .getOrElse {
+        // unregister (drop from cache) and fetch again
+        mapOutputTracker.unregisterShuffle(shuffleId)
+        fetchNewBlockManagers()
+      }
   }
 
   override def hasNext: Boolean = numBlocksProcessed < numBlocksToFetch
