@@ -19,6 +19,16 @@ jobs:
         with:
           repository: armadaproject/armada-operator
           path: armada-operator
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          check-latest: true
+          cache: false
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '23.3'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Scala and SBT
         env:
           SBT_VERSION: 1.10.7
@@ -29,13 +39,10 @@ jobs:
           curl -s -L -O https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz
           tar -xzvf ./sbt-${SBT_VERSION}.tgz
           echo "$PWD/sbt/bin" >> "${GITHUB_PATH}"
-          curl -s -L -O https://github.com/magefile/mage/releases/download/v1.15.0/mage_1.15.0_Linux-64bit.tar.gz
-          tar -xzvf ./mage_1.15.0_Linux-64bit.tar.gz mage
-          sudo apt install -y protobuf-compiler
       - name: Build Armada Scala Client
         run: |
           cd armada
-          ../mage buildScala
+          go run github.com/magefile/mage@v1.14.0 -v buildScala
           cd client/scala/scala-armada-client
           sbt -Dsbt.io.implicit.relative.glob.conversion=allow publishM2
       - name: Build Spark Docker image
